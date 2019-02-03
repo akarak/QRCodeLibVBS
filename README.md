@@ -14,11 +14,11 @@ JIS X 0510に基づくモデル２コードシンボルを生成します。
 
 ### 例１．単一シンボル(分割QRコードではない)QRコードの、最小限のコードを示します。
 
-その他の例は Example.bat または Example.vbs を参照してください。  
+その他の例は、Example.bat または Example.vbs を参照してください。  
 
 ```bat
 rem Command Line
-CScript.exe QRCode.vbs /data:"0123ABCD" /out:"qrcode01.bmp"
+CScript.exe QRCode.vbs /data:"0123ABCD" /out:"qrcode.bmp"
 ```
 
 ```vb
@@ -47,7 +47,7 @@ Public Sub Example()
     Dim sbls: Set sbls = CreateSymbols(ERRORCORRECTION_LEVEL_M, 1, True)
     Call sbls.AppendText("012ABCabc!?,./#")
 
-    Dim sbl, i
+    Dim i
     For i = 0 To sbls.Count - 1
         ' 24bpp Bitmap File
         Call sbls.Item(i).Save24bppDIB( _
