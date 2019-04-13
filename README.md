@@ -44,7 +44,7 @@ Public Sub Example()
     Const BACK_COLOR = "#FFFFFF"
     Const SCALE = 4
 
-    Dim sbls: Set sbls = CreateSymbols(ERRORCORRECTION_LEVEL_M, 1, True)
+    Dim sbls: Set sbls = CreateSymbols(ERRORCORRECTION_M, 1, True)
     Call sbls.AppendText("012ABCabc!?,./#")
 
     Dim i
