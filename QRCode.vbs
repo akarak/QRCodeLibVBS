@@ -3,10 +3,10 @@ Option Explicit
 Public Const MIN_VERSION = 1
 Public Const MAX_VERSION = 40
 
-Public Const ERRORCORRECTION_LEVEL_L = 0
-Public Const ERRORCORRECTION_LEVEL_M = 1
-Public Const ERRORCORRECTION_LEVEL_Q = 2
-Public Const ERRORCORRECTION_LEVEL_H = 3
+Public Const ERRORCORRECTION_L = 0
+Public Const ERRORCORRECTION_M = 1
+Public Const ERRORCORRECTION_Q = 2
+Public Const ERRORCORRECTION_H = 3
 
 Private Const ENCODINGMODE_UNKNOWN           = 0
 Private Const ENCODINGMODE_NUMERIC           = 1
@@ -54,11 +54,181 @@ Private VersionInfo:          Set VersionInfo = New VersionInfo_
 Call Main(WScript.Arguments)
 
 
-Public Function ToRGB(ByVal arg)
+Public Sub Main(ByVal args)
+    Const COLOR_BLACK = "#000000"
+    Const COLOR_WHITE = "#FFFFFF"
+
+    If args.Count = 0 Then Exit Sub
+
+    Dim namedArgs
+    Set namedArgs = args.Named
+    Dim unNamedArgs
+    Set unNamedArgs = args.UnNamed
+
+    Dim fso
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Dim ts
+    Dim data
+    Dim inFile
+    Dim outFilename
+
+    Dim parentFolder
+    parentFolder = fso.getParentFolderName(WScript.ScriptFullName)
+
+    If unNamedArgs.Count > 0 Then
+        If fso.FileExists(unNamedArgs(0)) Then
+            Set inFile = fso.GetFile(unNamedArgs(0))
+            Set ts = inFile.OpenAsTextStream()
+            data = ts.ReadAll()
+            Call ts.Close
+            outFilename = fso.GetParentFolderName(infile.Path) _
+                & "\" & fso.GetBaseName(infile.Name) & ".bmp"
+        Else
+            Call WScript.Echo("file not found")
+            Call WScript.Quit(-1)
+        End If
+    End If
+
+    Dim foreColor
+    foreColor = COLOR_BLACK
+
+    Dim backColor
+    backColor = COLOR_WHITE
+
+    Dim moduleSize
+    moduleSize = 4
+
+    Dim colorDepth
+    colorDepth = 24
+
+    Dim ecLevel
+    ecLevel = ERRORCORRECTION_M
+
+    Dim temp
+
     Dim re
     Set re = CreateObject("VBScript.RegExp")
+    re.IgnoreCase = True
 
+    If namedArgs.Count > 0 Then
+        If namedArgs.Exists("data") Then
+            If Len(data) = 0 Then
+                data = namedArgs.Item("data")
+            End If
+        Else
+            If Len(data) = 0 Then
+                Call WScript.Echo("argument error ""data""")
+                Call WScript.Quit(-1)
+            End IF
+        End IF
+
+        If namedArgs.Exists("out") Then
+            outFilename = namedArgs.Item("out")
+        Else
+            If Len(outFilename) = 0 Then
+                Call WScript.Echo("argument error ""out""")
+                Call WScript.Quit(-1)
+            End If
+        End IF
+
+        re.Pattern = "^#[0-9A-Fa-f]{6}$"
+
+        If namedArgs.Exists("forecolor") Then
+            If re.Test(namedArgs.Item("forecolor")) Then
+                foreColor = namedArgs.Item("forecolor")
+            Else
+                Call WScript.Echo("argument error ""forecolor""")
+                Call WScript.Quit(-1)
+            End If
+        End If
+
+        If namedArgs.Exists("backcolor") Then
+            If re.Test(namedArgs.Item("backcolor")) Then
+                backColor = namedArgs.Item("backcolor")
+            Else
+                Call WScript.Echo("argument error ""backcolor""")
+                Call WScript.Quit(-1)
+            End If
+        End If
+
+        re.Pattern = "^\d{1,2}$"
+
+        If namedArgs.Exists("modulesize") Then
+            If re.Test(namedArgs.Item("modulesize")) Then
+                moduleSize = CLng(namedArgs.Item("modulesize"))
+            Else
+                Call WScript.Echo("argument error ""modulesize""")
+                Call WScript.Quit(-1)
+            End If
+
+            If moduleSize < 1 Or moduleSize > 31 Then
+                Call WScript.Echo("argument error ""modulesize""")
+                Call WScript.Quit(-1)
+            End If
+        End If
+
+        re.Pattern = "^\d{1,2}$"
+
+        If namedArgs.Exists("colordepth") Then
+            If re.Test(namedArgs.Item("colordepth")) Then
+                colorDepth = CLng(namedArgs.Item("colordepth"))
+            Else
+                Call WScript.Echo("argument error ""colordepth""")
+                Call WScript.Quit(-1)
+            End If
+
+            If colorDepth <> 1 And colorDepth <> 24 Then
+                Call WScript.Echo("argument error ""colordepth""")
+                Call WScript.Quit(-1)
+            End If
+        End If
+
+        re.Pattern = "^[LMQH]$"
+
+        If namedArgs.Exists("ec") Then
+            temp = namedArgs.Item("ec")
+
+            If re.Test(temp) Then
+                Select Case UCase(temp)
+                    Case "L"
+                        ecLevel = ERRORCORRECTION_L
+                    Case "M"
+                        ecLevel = ERRORCORRECTION_M
+                    Case "Q"
+                        ecLevel = ERRORCORRECTION_Q
+                    Case "H"
+                        ecLevel = ERRORCORRECTION_H
+                    Case Else
+                        Call WScript.Echo("argument error ""ec""")
+                        Call WScript.Quit(-1)
+                End Select
+            Else
+                Call WScript.Echo("argument error ""ec""")
+                Call WScript.Quit(-1)
+            End If
+        End If
+    End If
+
+    Dim sbls
+    Set sbls = CreateSymbols(ecLevel, MAX_VERSION, False)
+    Call sbls.AppendText(data)
+
+    If colorDepth = 1 Then
+        Call sbls.Item(0).Save1bppDIB(outFilename, moduleSize, foreColor, backColor)
+    ElseIf colorDepth = 24 Then
+        Call sbls.Item(0).Save24bppDIB(outFilename, moduleSize, foreColor, backColor)
+    Else
+        Call Err.Raise(51)
+    End If
+
+    Call WScript.Quit(0)
+End Sub
+
+Private Function ToRGB(ByVal arg)
+    Dim re
+    Set re = CreateObject("VBScript.RegExp")
     re.Pattern = "^#[0-9A-Fa-f]{6}$"
+
     If Not re.Test(arg) Then Call Err.Raise(5)
 
     Dim ret
@@ -69,7 +239,7 @@ Public Function ToRGB(ByVal arg)
     ToRGB = ret
 End Function
 
-Public Function Build1bppDIB( _
+Private Function Build1bppDIB( _
   ByRef bitmapData, ByVal pictWidth, ByVal pictHeight, ByVal foreRGB, ByVal backRGB)
     Dim bfh
     Set bfh = New BITMAPFILEHEADER
@@ -123,7 +293,7 @@ Public Function Build1bppDIB( _
         Call ret.Append(.bfSize)
         Call ret.Append(.bfReserved1)
         Call ret.Append(.bfReserved2)
-        Call ret.Append(.bfOffBits)        
+        Call ret.Append(.bfOffBits)
     End With
 
     With bih
@@ -159,7 +329,7 @@ Public Function Build1bppDIB( _
     Set Build1bppDIB = ret
 End Function
 
-Public Function Build24bppDIB( _
+Private Function Build24bppDIB( _
   ByRef bitmapData, ByVal pictWidth, ByVal pictHeight)
     Dim bfh
     Set bfh = New BITMAPFILEHEADER
@@ -228,7 +398,7 @@ Public Function CreateSymbols( _
     Set CreateSymbols = ret
 End Function
 
-Public Function CreateEncoder(ByVal encMode)
+Private Function CreateEncoder(ByVal encMode)
     Dim ret
 
     Select Case encMode
@@ -436,10 +606,10 @@ Class AlphanumericEncoder
         code = Asc(c)
 
         ' A - Z
-        If code >= 65 And code <= 90 Then
+        If 65 <= code And code <= 90 Then
             ret = True
         ' 0 - 9
-        ElseIf code >= 48 And code <= 57 Then
+        ElseIf 48 <= code And code <= 57 Then
             ret = True
         ' (Space)
         ElseIf code = 32 Then
@@ -472,7 +642,7 @@ Class AlphanumericEncoder
         code = Asc(c)
 
         ' A - Z
-        If code >= 65 And code <= 90 Then
+        If 65 <= code And code <= 90 Then
             ret = True
         ' (Space)
         ElseIf code = 32 Then
@@ -504,10 +674,10 @@ Class AlphanumericEncoder
         code = Asc(c)
 
         ' A - Z
-        If code >= 65 And code <= 90 Then
+        If 65 <= code And code <= 90 Then
             ConvertCharCode = code - 55
         ' 0 - 9
-        ElseIf code >= 48 And code <= 57 Then
+        ElseIf 48 <= code And code <= 57 Then
             ConvertCharCode = code - 48
         ' (Space)
         ElseIf code = 32 Then
@@ -580,7 +750,7 @@ Class BinaryWriter
     End Sub
 
     Public Sub Append(ByVal arg)
-        If (VarType(arg) And vbArray) = 0 Then 
+        If (VarType(arg) And vbArray) = 0 Then
             arg = Array(arg)
         End If
 
@@ -590,25 +760,25 @@ Class BinaryWriter
         For i = 0 To Ubound(arg)
             Select Case VarType(arg(i))
                 Case vbByte
-                    m_stream.Write m_byteTable(arg(i))
+                    Call m_stream.Write(m_byteTable(arg(i)))
                 Case vbInteger
                     temp = arg(i) And &HFF&
-                    m_stream.Write m_byteTable(temp)
+                    Call m_stream.Write(m_byteTable(temp))
 
                     temp = (arg(i) And &HFF00&) \ 2 ^ 8
-                    m_stream.Write m_byteTable(temp)
+                    Call m_stream.Write(m_byteTable(temp))
                 Case vbLong
                     temp = arg(i) And &HFF&
-                    m_stream.Write m_byteTable(temp)
+                    Call m_stream.Write(m_byteTable(temp))
 
                     temp = (arg(i) And &HFF00&) \ 2 ^ 8
-                    m_stream.Write m_byteTable(temp)
+                    Call m_stream.Write(m_byteTable(temp))
 
                     temp = (arg(i) And &HFF0000) \ 2 ^ 16
-                    m_stream.Write m_byteTable(temp)
+                    Call m_stream.Write(m_byteTable(temp))
 
                     temp = (arg(i) And &HFF000000) \ 2 ^ 24
-                    m_stream.Write m_byteTable(temp)
+                    Call m_stream.Write(m_byteTable(temp))
                 Case Else
                     Call Err.Raise(5)
             End Select
@@ -817,7 +987,7 @@ End Class
 Class CharCountIndicator_
 
     Public Function GetLength(ByVal ver, ByVal encMode)
-        If ver >= 1 And ver <= 9 Then
+        If 1 <= ver And ver <= 9 Then
             Select Case encMode
                 Case ENCODINGMODE_NUMERIC
                     GetLength = 10
@@ -830,7 +1000,7 @@ Class CharCountIndicator_
                 Case Else
                     Call Err.Raise(5)
             End Select
-        ElseIf ver >= 10 And ver <= 26 Then
+        ElseIf 10 <= ver And ver <= 26 Then
             Select Case encMode
                 Case ENCODINGMODE_NUMERIC
                     GetLength = 12
@@ -843,7 +1013,7 @@ Class CharCountIndicator_
                 Case Else
                     Call Err.Raise(5)
             End Select
-        ElseIf ver >= 27 And ver <= 40 Then
+        ElseIf 27 <= ver And ver <= 40 Then
             Select Case encMode
                 Case ENCODINGMODE_NUMERIC
                     GetLength = 14
@@ -1083,13 +1253,13 @@ Class FormatInfo_
         Dim indicator
 
         Select Case ecLevel
-            Case ERRORCORRECTION_LEVEL_L
+            Case ERRORCORRECTION_L
                 indicator = 1
-            Case ERRORCORRECTION_LEVEL_M
+            Case ERRORCORRECTION_M
                 indicator = 0
-            Case ERRORCORRECTION_LEVEL_Q
+            Case ERRORCORRECTION_Q
                 indicator = 3
-            Case ERRORCORRECTION_LEVEL_H
+            Case ERRORCORRECTION_H
                 indicator = 2
             Case Else
                 Call Err.Raise(5)
@@ -1613,7 +1783,7 @@ Class MaskingPenaltyScore_
                 Do While idx <= maxIdx
                     If cols(idx) > 0 Then Exit Do
                     ratio.PreLightRatio4 = ratio.PreLightRatio4 + 1
-                    idx = idx + 1                    
+                    idx = idx + 1
                 Loop
 
                 Do While idx <= maxIdx
@@ -1625,35 +1795,35 @@ Class MaskingPenaltyScore_
                 Do While idx <= maxIdx
                     If cols(idx) > 0 Then Exit Do
                     ratio.PreLightRatio1 = ratio.PreLightRatio1 + 1
-                    idx = idx + 1                   
+                    idx = idx + 1
                 Loop
 
                 If ratio.PreDarkRatio1 = ratio.PreLightRatio1 Then
                     Do While idx <= maxIdx
                         If cols(idx) <= 0 Then Exit Do
                         ratio.CenterDarkRatio3 = ratio.CenterDarkRatio3 + 1
-                        idx = idx + 1                       
+                        idx = idx + 1
                     Loop
 
                     If (ratio.PreLightRatio1 * 3) = ratio.CenterDarkRatio3 Then
                         Do While idx <= maxIdx
                             If cols(idx) > 0 Then Exit Do
                             ratio.FolLightRatio1 = ratio.FolLightRatio1 + 1
-                            idx = idx + 1                            
+                            idx = idx + 1
                         Loop
 
-                        If ratio.CenterDarkRatio3 = (ratio.FolLightRatio1 * 3) Then 
+                        If ratio.CenterDarkRatio3 = (ratio.FolLightRatio1 * 3) Then
                             Do While idx <= maxIdx
                                 If cols(idx) <= 0 Then Exit Do
                                 ratio.FolDarkRatio1 = ratio.FolDarkRatio1 + 1
-                                idx = idx + 1                                
+                                idx = idx + 1
                             Loop
 
                             If ratio.FolLightRatio1 = ratio.FolDarkRatio1 Then
                                 Do While idx <= maxIdx
                                     If cols(idx) > 0 Then Exit Do
                                     ratio.FolLightRatio4 = ratio.FolLightRatio4 + 1
-                                    idx = idx + 1                                    
+                                    idx = idx + 1
                                 Loop
                             End If
                         End If
@@ -1860,8 +2030,7 @@ Class QuietZone_
             ret(i) = cols
         Next
 
-        Dim r
-        Dim c
+        Dim r, c
 
         For r = 0 To UBound(moduleMatrix)
             For c = 0 To UBound(moduleMatrix(r))
@@ -2042,7 +2211,7 @@ Class Symbol
         Call m_segmentCounter.Add(ENCODINGMODE_ALPHA_NUMERIC, 0)
         Call m_segmentCounter.Add(ENCODINGMODE_EIGHT_BIT_BYTE, 0)
         Call m_segmentCounter.Add(ENCODINGMODE_KANJI, 0)
-        
+
         If parentObj.StructuredAppendAllowed Then
             m_dataBitCapacity = m_dataBitCapacity - STRUCTUREDAPPEND_HEADER_LENGTH
         End If
@@ -2115,9 +2284,9 @@ Class Symbol
 
     Private Sub SelectVersion()
         Dim encMode
+        Dim num
 
         For Each encMode In m_segmentCounter.Keys
-            Dim num
             num = m_segmentCounter(encMode)
 
             m_dataBitCounter = m_dataBitCounter + _
@@ -2380,7 +2549,6 @@ Class Symbol
     End Sub
 
     Private Sub WritePaddingBits(ByVal bs)
-
         If bs.Length Mod 8 > 0 Then
             Call bs.Append(&H0, 8 - (bs.Length Mod 8))
         End If
@@ -2569,6 +2737,7 @@ Class Symbol
         Dim r, c
         Dim i
         Dim pixelColor
+        Dim bitmapRow
 
         For r = UBound(moduleMatrix) To 0 Step -1
             Call bs.Clear
@@ -2581,12 +2750,11 @@ Class Symbol
                 End If
 
                 Call bs.Append(pixelColor, moduleSize)
-
             Next
+
             Call bs.Append(0, pack8bit)
             Call bs.Append(0, pack32bit)
 
-            Dim bitmapRow
             bitmapRow = bs.GetBytes()
 
             For i = 1 To moduleSize
@@ -2660,7 +2828,6 @@ Class Symbol
                     bitmapRow(idx + 2) = CByte(colorRGB And &HFF&)
                     idx = idx + 3
                 Next
-
             Next
 
             For i = 1 To pack4byte
@@ -3191,7 +3358,6 @@ Class VersionInfo_
                 p1 = p1 + 1
                 p2 = numModulesPerSide - 11
             End If
-
         Next
     End Sub
 
@@ -3385,170 +3551,3 @@ Class RGBQUAD
     End Property
 
 End Class
-
-
-Public Sub Main(ByVal args)
-    If args.Count = 0 Then Exit Sub
-        
-    Dim namedArgs
-    Set namedArgs = args.Named
-    Dim unNamedArgs
-    Set unNamedArgs = args.UnNamed
-
-    Dim fso
-    Set fso = CreateObject("Scripting.FileSystemObject")
-    Dim ts
-    Dim data
-    Dim inFile
-    Dim outFilename
-
-    Dim parentFolder
-    parentFolder = fso.getParentFolderName(WScript.ScriptFullName)
-
-    If unNamedArgs.Count > 0 Then
-        If fso.FileExists(unNamedArgs(0)) Then
-            Set inFile = fso.GetFile(unNamedArgs(0))
-            Set ts = inFile.OpenAsTextStream()
-            data = ts.ReadAll()
-            Call ts.Close
-            outFilename = fso.GetParentFolderName(infile.Path) _
-            	& "\" & fso.GetBaseName(infile.Name) & ".bmp"
-        Else
-            Call WScript.Echo("file not found")
-            Call WScript.Quit(-1)
-        End If
-    End If
-
-    Dim foreColor
-    foreColor = "#000000"
-
-    Dim backColor
-    backColor = "#FFFFFF"
-
-    Dim moduleSize
-    moduleSize = 4
-
-    Dim colorDepth
-    colorDepth = 24
-
-    Dim ecLevel
-    ecLevel = ERRORCORRECTION_LEVEL_M
-
-    Dim temp
-
-    Dim re
-    Set re = CreateObject("VBScript.RegExp")
-    re.IgnoreCase = True
-
-    If namedArgs.Count > 0 Then
-        If namedArgs.Exists("data") Then
-            If Len(data) = 0 Then
-                data = namedArgs.Item("data")
-            End If
-        Else
-            If Len(data) = 0 Then
-                Call WScript.Echo("argument error ""data""")
-                Call WScript.Quit(-1)
-            End IF
-        End IF
-
-        If namedArgs.Exists("out") Then
-            outFilename = namedArgs.Item("out")
-        Else
-            If Len(outFilename) = 0 Then
-                Call WScript.Echo("argument error ""out""")
-                Call WScript.Quit(-1)
-            End If
-        End IF
-
-        re.Pattern = "^#[0-9A-Fa-f]{6}$"
-
-        If namedArgs.Exists("forecolor") Then
-            If re.Test(namedArgs.Item("forecolor")) Then
-                foreColor = namedArgs.Item("forecolor")
-            Else
-                Call WScript.Echo("argument error ""forecolor""")
-                Call WScript.Quit(-1)
-            End If
-        End If
-
-        If namedArgs.Exists("backcolor") Then
-            If re.Test(namedArgs.Item("backcolor")) Then
-                backColor = namedArgs.Item("backcolor")
-            Else
-                Call WScript.Echo("argument error ""backcolor""")
-                Call WScript.Quit(-1)
-            End If
-        End If
-
-        re.Pattern = "^\d{1,2}$"
-
-        If namedArgs.Exists("modulesize") Then
-            If re.Test(namedArgs.Item("modulesize")) Then
-                moduleSize = CLng(namedArgs.Item("modulesize"))
-            Else
-                Call WScript.Echo("argument error ""modulesize""")
-                Call WScript.Quit(-1)
-            End If
-
-            If moduleSize < 1 Or moduleSize > 31 Then
-                Call WScript.Echo("argument error ""modulesize""")
-                Call WScript.Quit(-1)
-            End If            
-        End If
-
-        re.Pattern = "^\d{1,2}$"
-
-        If namedArgs.Exists("colordepth") Then
-            If re.Test(namedArgs.Item("colordepth")) Then
-                colorDepth = CLng(namedArgs.Item("colordepth"))
-            Else
-                Call WScript.Echo("argument error ""colordepth""")
-                Call WScript.Quit(-1)
-            End If
-
-            If colorDepth <> 1 And colorDepth <> 24 Then
-                Call WScript.Echo("argument error ""colordepth""")
-                Call WScript.Quit(-1)
-            End If            
-        End If
-
-        re.Pattern = "^[LMQH]$"
-
-        If namedArgs.Exists("ec") Then
-            temp = namedArgs.Item("ec")
-
-            If re.Test(temp) Then   
-                If UCase(temp) = "L" Then
-                    ecLevel = ERRORCORRECTION_LEVEL_L
-                ElseIf UCase(temp) = "M" Then
-                    ecLevel = ERRORCORRECTION_LEVEL_M
-                ElseIf UCase(temp) = "Q" Then
-                    ecLevel = ERRORCORRECTION_LEVEL_Q
-                ElseIf UCase(temp) = "H" Then
-                    ecLevel = ERRORCORRECTION_LEVEL_H
-                Else
-                    Call WScript.Echo("argument error ""ec""")
-                    Call WScript.Quit(-1)
-                End If
-            Else
-                Call WScript.Echo("argument error ""ec""")
-                Call WScript.Quit(-1)
-            End If
-        End If
-    End If
-
-    Dim sbls
-    Set sbls = CreateSymbols(ecLevel, 40, False)
-    Call sbls.AppendText(data)
-
-    If colorDepth = 1 Then
-        Call sbls.Item(0).Save1bppDIB(outFilename, moduleSize, foreColor, backColor)
-    ElseIf colorDepth = 24 Then
-        Call sbls.Item(0).Save24bppDIB(outFilename, moduleSize, foreColor, backColor)
-    Else
-        Call Err.Raise(51)
-    End If
-
-    WScript.Quit(0)
-End Sub
