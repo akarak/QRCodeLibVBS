@@ -951,34 +951,20 @@ Class ByteEncoder
     End Function
 
     Public Function InExclusiveSubset(ByVal c)
-        Dim ret
-
-        Dim code
-        code = Asc(c) And &HFFFF&
-
-        If code = &H20& Then
-            ret = False
-        ElseIf code = &H24& Then
-            ret = False
-        ElseIf code = &H25& Then
-            ret = False
-        ElseIf code = &H2A& Then
-            ret = False
-        ElseIf code = &H2B& Then
-            ret = False
-        ElseIf &H2D& <= code And code <= &H3A& Then
-            ret = False
-        ElseIf &H41& <= code And code <= &H5A& Then
-            ret = False
-        ElseIf &H8140& <= code And  code <= &H9FFC& Then
-            ret = False
-        ElseIf &HE040& <= code And code <= &HEBBF& Then
-            ret = False
-        Else
-            ret = True
+        If m_encAlpha.InSubset(c) Then
+            InExclusiveSubset = False
+            Exit Function
         End If
 
-        InExclusiveSubset = ret
+        If m_encKanji.InSubset(c) Then
+            InExclusiveSubset = False
+            Exit Function
+        End If
+        
+        If InSubset(c) Then
+            InExclusiveSubset = True
+            Exit Function
+        End If
     End Function
 
 End Class
