@@ -960,7 +960,7 @@ Class ByteEncoder
             InExclusiveSubset = False
             Exit Function
         End If
-        
+
         If InSubset(c) Then
             InExclusiveSubset = True
             Exit Function
@@ -1658,8 +1658,8 @@ Class MaskingPenaltyScore_
         penalty = CalcBlockOfModulesInSameColor(moduleMatrix)
         total = total + penalty
 
-''        penalty = CalcModuleRatio(moduleMatrix)
-''        total = total + penalty
+        penalty = CalcModuleRatio(moduleMatrix)
+        total = total + penalty
 
         penalty = CalcProportionOfDarkModules(moduleMatrix)
         total = total + penalty
@@ -1746,91 +1746,157 @@ Class MaskingPenaltyScore_
 
     Private Function CalcModuleRatioInRow(ByRef moduleMatrix())
         Dim penalty
-        penalty = 0
 
-        Dim r, c
-        Dim cols
-        Dim maxIdx
-        Dim startIndexes
+        Dim ratio3Ranges
+        Dim rowArray
+
+        Dim ratio1, ratio3, ratio4
 
         Dim i
-        Dim idx
-        Dim ratio
+        Dim cnt
+        Dim flg
+        Dim impose
 
-        For r = 0 To UBound(moduleMatrix)
-            cols = moduleMatrix(r)
-            maxIdx = Ubound(cols)
-            Set startIndexes = New List
+        Dim rng
 
-            Call startIndexes.Add(0)
+        For Each rowArray In moduleMatrix
+            ratio3Ranges = GetRatio3Ranges(rowArray)
 
-            For c = 0 To maxIdx - 2
-                If cols(c) > 0 And cols(c + 1) <= 0 Then
-                    Call startIndexes.Add(c + 1)
-                End If
-            Next
+            For Each rng In ratio3Ranges
+                ratio3 = rng(1) + 1 - rng(0)
+                ratio1 = ratio3 \ 3
+                ratio4 = ratio1 * 4
+                flg = True
+                impose = False
 
-            For i = 0 To startIndexes.Count - 1
-                idx = startIndexes.Item(i)
-                Set ratio = New ModuleRatio
-
-                Do While idx <= maxIdx
-                    If cols(idx) > 0 Then Exit Do
-                    ratio.PreLightRatio4 = ratio.PreLightRatio4 + 1
-                    idx = idx + 1
-                Loop
-
-                Do While idx <= maxIdx
-                    If cols(idx) <= 0 Then Exit Do
-                    ratio.PreDarkRatio1 = ratio.PreDarkRatio1 + 1
-                    idx = idx + 1
-                Loop
-
-                Do While idx <= maxIdx
-                    If cols(idx) > 0 Then Exit Do
-                    ratio.PreLightRatio1 = ratio.PreLightRatio1 + 1
-                    idx = idx + 1
-                Loop
-
-                If ratio.PreDarkRatio1 = ratio.PreLightRatio1 Then
-                    Do While idx <= maxIdx
-                        If cols(idx) <= 0 Then Exit Do
-                        ratio.CenterDarkRatio3 = ratio.CenterDarkRatio3 + 1
-                        idx = idx + 1
-                    Loop
-
-                    If (ratio.PreLightRatio1 * 3) = ratio.CenterDarkRatio3 Then
-                        Do While idx <= maxIdx
-                            If cols(idx) > 0 Then Exit Do
-                            ratio.FolLightRatio1 = ratio.FolLightRatio1 + 1
-                            idx = idx + 1
-                        Loop
-
-                        If ratio.CenterDarkRatio3 = (ratio.FolLightRatio1 * 3) Then
-                            Do While idx <= maxIdx
-                                If cols(idx) <= 0 Then Exit Do
-                                ratio.FolDarkRatio1 = ratio.FolDarkRatio1 + 1
-                                idx = idx + 1
-                            Loop
-
-                            If ratio.FolLightRatio1 = ratio.FolDarkRatio1 Then
-                                Do While idx <= maxIdx
-                                    If cols(idx) > 0 Then Exit Do
-                                    ratio.FolLightRatio4 = ratio.FolLightRatio4 + 1
-                                    idx = idx + 1
-                                Loop
-                            End If
+                If flg Then
+                    ' light ratio 1
+                    i = rng(0) - 1
+                    cnt = 0
+                    Do While i > 0
+                        If rowArray(i) <= 0 And rowArray(i - 1) > 0 Then
+                            cnt = cnt + 1
+                            i = i - 1
+                        Else
+                            Exit Do
                         End If
+                    Loop
+                    
+                    flg = cnt = ratio1
+                End If
+
+                If flg Then
+                    ' dark ratio 1
+                    cnt = 0
+                    Do While i > 0
+                        If rowArray(i) > 0 And rowArray(i - 1) <= 0 Then
+                            cnt = cnt + 1
+                            i = i - 1
+                        Else
+                            Exit Do
+                        End If
+                    Loop
+                    
+                    flg = cnt = ratio1
+                End If
+
+                If flg Then
+                    ' light ratio 4
+                    cnt = 0
+                    Do While i >= 0
+                        If rowArray(i) <= 0 Then
+                            cnt = cnt + 1
+                            i = i - 1
+                        Else
+                            Exit Do
+                        End If
+                    Loop
+                    
+                    If cnt >= ratio4 Then
+                        impose = True
                     End If
                 End If
 
-                If ratio.PenaltyImposed() Then
+                If flg Then
+                    ' light ratio 1
+                    i = rng(1) + 1
+                    cnt = 0
+                    Do While i < UBound(rowArray)
+                        If rowArray(i) <= 0 And rowArray(i + 1) > 0 Then
+                            cnt = cnt + 1
+                            i = i + 1
+                        Else
+                            Exit Do
+                        End If
+                    Loop
+                    
+                    flg = cnt = ratio1
+                End If
+
+                If flg Then
+                    ' dark ratio 1
+                    cnt = 0
+                    Do While i < UBound(rowArray)
+                        If rowArray(i) > 0 And rowArray(i - 1) <= 0 Then
+                            cnt = cnt + 1
+                            i = i + 1
+                        Else
+                            Exit Do
+                        End If
+                    Loop
+                    
+                    flg = cnt = ratio1
+                End If
+
+                If flg Then
+                    ' light ratio 4
+                    cnt = 0
+                    Do While i <= UBound(rowArray)
+                        If rowArray(i) <= 0 Then
+                            cnt = cnt + 1
+                            i = i + 1
+                        Else
+                            Exit Do
+                        End If
+                    Loop
+
+                    If cnt >= ratio4 Then
+                        impose = True
+                    End If
+                End If
+
+                If flg And impose Then
                     penalty = penalty + 40
                 End If
             Next
         Next
 
         CalcModuleRatioInRow = penalty
+    End Function
+
+    Private Function GetRatio3Ranges(ByRef arg)
+        Dim ret
+        ret = Array()
+
+        Dim s, e
+        Dim c
+
+        For c = 4 To UBound(arg) - 4
+            If arg(c) > 0 And arg(c - 1) <= 0 Then
+                s = c
+            End If
+
+            If arg(c) > 0 And arg(c + 1) <= 0 Then
+                e = c
+
+                If (e + 1 - s) Mod 3 = 0 Then
+                    ReDim Preserve ret(UBound(ret) + 1)
+                    ret(UBound(ret)) = Array(s, e)
+                End If
+            End If
+        Next
+
+        GetRatio3Ranges = ret
     End Function
 
     Private Function CalcProportionOfDarkModules(ByRef moduleMatrix())
@@ -1887,37 +1953,6 @@ Class Module_
 
     Public Function GetNumModulesPerSide(ByVal ver)
         GetNumModulesPerSide = 17 + ver * 4
-    End Function
-
-End Class
-
-
-Class ModuleRatio
-
-    Public PreLightRatio4
-    Public PreDarkRatio1
-    Public PreLightRatio1
-    Public CenterDarkRatio3
-    Public FolLightRatio1
-    Public FolDarkRatio1
-    Public FolLightRatio4
-
-    Public Function PenaltyImposed()
-        If PreDarkRatio1 = 0 Then
-            PenaltyImposed = False
-            Exit Function
-        End If
-
-        If PreDarkRatio1 = PreLightRatio1 And _
-           PreDarkRatio1 = FolLightRatio1 And _
-           PreDarkRatio1 = FolDarkRatio1 And _
-           PreDarkRatio1 * 3 = CenterDarkRatio3 Then
-
-            PenaltyImposed = PreLightRatio4 >= PreDarkRatio1 * 4 Or _
-                             FolLightRatio4 >= PreDarkRatio1 * 4
-        Else
-            PenaltyImposed = False
-        End If
     End Function
 
 End Class
@@ -3031,12 +3066,12 @@ Class Symbols
             SelectInitialMode = ENCODINGMODE_KANJI
             Exit Function
         End If
-        
+
         If m_encByte.InExclusiveSubset(Mid(s, startIndex, 1)) Then
             SelectInitialMode = ENCODINGMODE_EIGHT_BIT_BYTE
             Exit Function
         End If
-        
+
         If m_encAlpha.InExclusiveSubset(Mid(s, startIndex, 1)) Then
             cnt = 0
             flg = False
@@ -3077,7 +3112,7 @@ Class Symbols
                 Exit Function
             End If
         End If
-        
+
         If m_encNum.InSubset(Mid(s, startIndex, 1)) Then
             cnt = 0
             flg1 = False
@@ -3131,7 +3166,7 @@ Class Symbols
                 Exit Function
             End If
         End If
-        
+
         Call Err.Raise(51)
     End Function
 
@@ -3140,12 +3175,12 @@ Class Symbols
             SelectModeWhileInNumericMode = ENCODINGMODE_KANJI
             Exit Function
         End If
-        
+
         If m_encByte.InExclusiveSubset(Mid(s, startIndex, 1)) Then
             SelectModeWhileInNumericMode = ENCODINGMODE_EIGHT_BIT_BYTE
             Exit Function
         End If
-        
+
         If m_encAlpha.InExclusiveSubset(Mid(s, startIndex, 1)) Then
             SelectModeWhileInNumericMode = ENCODINGMODE_ALPHA_NUMERIC
             Exit Function
@@ -3166,7 +3201,7 @@ Class Symbols
             SelectModeWhileInAlphanumericMode = ENCODINGMODE_KANJI
             Exit Function
         End If
-        
+
         If m_encByte.InExclusiveSubset(Mid(s, startIndex, 1)) Then
             SelectModeWhileInAlphanumericMode = ENCODINGMODE_EIGHT_BIT_BYTE
             Exit Function
