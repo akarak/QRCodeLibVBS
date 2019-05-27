@@ -1681,14 +1681,15 @@ Class MaskingPenaltyScore_
         Dim penalty
         penalty = 0
 
-        Dim r, c
+        Dim rowArray
+        Dim i
         Dim cnt
 
-        For r = 0 To UBound(moduleMatrix)
+        For Each rowArray In moduleMatrix
             cnt = 1
 
-            For c = 0 To UBound(moduleMatrix(r)) - 1
-                If (moduleMatrix(r)(c) > 0) = (moduleMatrix(r)(c + 1) > 0) Then
+            For i = 0 To UBound(rowArray) - 1
+                If (rowArray(i) > 0) = (rowArray(i + 1) > 0) Then
                     cnt = cnt + 1
                 Else
                     If cnt >= 5 Then
