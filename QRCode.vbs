@@ -1770,34 +1770,35 @@ Class MaskingPenaltyScore_
                 flg = True
                 impose = False
 
+                i = rng(0) - 1
+
                 If flg Then
                     ' light ratio 1
-                    i = rng(0) - 1
                     cnt = 0
-                    Do While i > 0
-                        If rowArray(i) <= 0 And rowArray(i - 1) > 0 Then
+                    Do While i >= 0
+                        If rowArray(i) <= 0 Then
                             cnt = cnt + 1
                             i = i - 1
                         Else
                             Exit Do
                         End If
                     Loop
-                    
+
                     flg = cnt = ratio1
                 End If
 
                 If flg Then
                     ' dark ratio 1
                     cnt = 0
-                    Do While i > 0
-                        If rowArray(i) > 0 And rowArray(i - 1) <= 0 Then
+                    Do While i >= 0
+                        If rowArray(i) > 0 Then
                             cnt = cnt + 1
                             i = i - 1
                         Else
                             Exit Do
                         End If
                     Loop
-                    
+
                     flg = cnt = ratio1
                 End If
 
@@ -1812,40 +1813,41 @@ Class MaskingPenaltyScore_
                             Exit Do
                         End If
                     Loop
-                    
+
                     If cnt >= ratio4 Then
                         impose = True
                     End If
                 End If
 
+                i = rng(1) + 1
+
                 If flg Then
                     ' light ratio 1
-                    i = rng(1) + 1
                     cnt = 0
-                    Do While i < UBound(rowArray)
-                        If rowArray(i) <= 0 And rowArray(i + 1) > 0 Then
+                    Do While i <= UBound(rowArray)
+                        If rowArray(i) <= 0 Then
                             cnt = cnt + 1
                             i = i + 1
                         Else
                             Exit Do
                         End If
                     Loop
-                    
+
                     flg = cnt = ratio1
                 End If
 
                 If flg Then
                     ' dark ratio 1
                     cnt = 0
-                    Do While i < UBound(rowArray)
-                        If rowArray(i) > 0 And rowArray(i - 1) <= 0 Then
+                    Do While i <= UBound(rowArray)
+                        If rowArray(i) > 0 Then
                             cnt = cnt + 1
                             i = i + 1
                         Else
                             Exit Do
                         End If
                     Loop
-                    
+
                     flg = cnt = ratio1
                 End If
 
@@ -1880,15 +1882,15 @@ Class MaskingPenaltyScore_
         ret = Array()
 
         Dim s, e
-        Dim c
+        Dim i
 
-        For c = 4 To UBound(arg) - 4
-            If arg(c) > 0 And arg(c - 1) <= 0 Then
-                s = c
+        For i = 4 To UBound(arg) - 4
+            If arg(i) > 0 And arg(i - 1) <= 0 Then
+                s = i
             End If
 
-            If arg(c) > 0 And arg(c + 1) <= 0 Then
-                e = c
+            If arg(i) > 0 And arg(i + 1) <= 0 Then
+                e = i
 
                 If (e + 1 - s) Mod 3 = 0 Then
                     ReDim Preserve ret(UBound(ret) + 1)
