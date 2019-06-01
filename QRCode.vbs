@@ -1434,8 +1434,8 @@ Class KanjiEncoder
 
         If &H8140& <= code And code <= &H9FFC& Or _
            &HE040& <= code And code <= &HEBBF& Then
-            InSubset = &H40&  <= lsb And lsb <= &HFC& And _
-                       lsb <> &H7F&
+            InSubset = &H40& <= lsb And lsb <= &HFC& And _
+                       &H7F& <> lsb
         Else
             InSubset = False
         End If
@@ -1904,11 +1904,13 @@ Class MaskingPenaltyScore_
 
     Private Function CalcProportionOfDarkModules(ByRef moduleMatrix())
         Dim darkCount
-        Dim r, c
 
-        For r = 0 To UBound(moduleMatrix)
-            For c = 0 To UBound(moduleMatrix(r))
-                If moduleMatrix(r)(c) > 0 Then
+        Dim rowArray
+        Dim v
+
+        For Each rowArray In moduleMatrix
+            For Each v In rowArray
+                If v > 0 Then
                     darkCount = darkCount + 1
                 End If
             Next
