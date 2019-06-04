@@ -463,7 +463,7 @@ Class AlignmentPattern_
         m_centerPosArrays(40) = Array(6, 30, 58, 86, 114, 142, 170)
     End Sub
 
-    Public Sub Place(ByRef moduleMatrix(), ByVal ver)
+    Public Sub Place(ByVal ver, ByRef moduleMatrix())
         Dim centerArray
         centerArray = m_centerPosArrays(ver)
 
@@ -755,29 +755,29 @@ Class BinaryWriter
         End If
 
         Dim temp
+        Dim v
 
-        Dim i
-        For i = 0 To Ubound(arg)
-            Select Case VarType(arg(i))
+        For Each v In arg
+            Select Case VarType(v)
                 Case vbByte
-                    Call m_stream.Write(m_byteTable(arg(i)))
+                    Call m_stream.Write(m_byteTable(v))
                 Case vbInteger
-                    temp = arg(i) And &HFF&
+                    temp = v And &HFF&
                     Call m_stream.Write(m_byteTable(temp))
 
-                    temp = (arg(i) And &HFF00&) \ 2 ^ 8
+                    temp = (v And &HFF00&) \ 2 ^ 8
                     Call m_stream.Write(m_byteTable(temp))
                 Case vbLong
-                    temp = arg(i) And &HFF&
+                    temp = v And &HFF&
                     Call m_stream.Write(m_byteTable(temp))
 
-                    temp = (arg(i) And &HFF00&) \ 2 ^ 8
+                    temp = (v And &HFF00&) \ 2 ^ 8
                     Call m_stream.Write(m_byteTable(temp))
 
-                    temp = (arg(i) And &HFF0000) \ 2 ^ 16
+                    temp = (v And &HFF0000) \ 2 ^ 16
                     Call m_stream.Write(m_byteTable(temp))
 
-                    temp = (arg(i) And &HFF000000) \ 2 ^ 24
+                    temp = (v And &HFF000000) \ 2 ^ 24
                     Call m_stream.Write(m_byteTable(temp))
                 Case Else
                     Call Err.Raise(5)
@@ -1145,7 +1145,7 @@ Class FormatInfo_
         m_formatInfoMaskArray = Array(0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1)
     End Sub
 
-    Public Sub Place(ByRef moduleMatrix(), ByVal ecLevel, ByVal maskPatternReference)
+    Public Sub Place(ByVal ecLevel, ByVal maskPatternReference, ByRef moduleMatrix())
         Dim formatInfoValue
         formatInfoValue = GetFormatInfoValue(ecLevel, maskPatternReference)
 
@@ -1417,9 +1417,9 @@ Class KanjiEncoder
         Dim bs
         Set bs = New BitSequence
 
-        Dim i
-        For i = 0 To UBound(m_data)
-            Call bs.Append(m_data(i), 13)
+        Dim v
+        For Each v In m_data
+            Call bs.Append(v, 13)
         Next
 
         GetBytes = bs.GetBytes()
@@ -1487,47 +1487,41 @@ End Class
 
 Class Masking_
 
-    Public Function Apply(ByRef moduleMatrix(), ByVal ver, ByVal ecLevel)
-        Dim maskPatternReference
-        maskPatternReference = SelectMaskPattern(moduleMatrix, ver, ecLevel)
-
-        Call Mask(moduleMatrix, maskPatternReference)
-
-        Apply = maskPatternReference
-    End Function
-
-    Private Function SelectMaskPattern(ByRef moduleMatrix(), ByVal ver, ByVal ecLevel)
+    Public Function Apply(ByVal ver, ByVal ecLevel, ByRef moduleMatrix)
         Dim minPenalty
         minPenalty = &H7FFFFFFF
-
-        Dim ret
-        ret = 0
 
         Dim temp
         Dim penalty
         Dim maskPatternReference
+        Dim maskedMatrix
 
-        For maskPatternReference = 0 To 7
+        Dim i
+
+        For i = 0 To 7
             temp = moduleMatrix
-            Call Mask(temp, maskPatternReference)
-            Call FormatInfo.Place(temp, ecLevel, maskPatternReference)
+
+            Call Mask(i, temp)
+            Call FormatInfo.Place(ecLevel, i, temp)
 
             If ver >= 7 Then
-                Call VersionInfo.Place(temp, ver)
+                Call VersionInfo.Place(ver, temp)
             End If
 
             penalty = MaskingPenaltyScore.CalcTotal(temp)
 
             If penalty < minPenalty Then
                 minPenalty = penalty
-                ret = maskPatternReference
+                maskPatternReference = i
+                maskedMatrix = temp
             End If
         Next
 
-        SelectMaskPattern = ret
+        moduleMatrix = maskedMatrix
+        Apply = maskPatternReference
     End Function
 
-    Private Sub Mask(ByRef moduleMatrix(), ByVal maskPatternReference)
+    Private Sub Mask(ByVal maskPatternReference, ByRef moduleMatrix())
         Dim condition
         Set condition = GetCondition(maskPatternReference)
 
@@ -2320,7 +2314,7 @@ Class Symbol
         Dim encMode
         Dim num
 
-        For Each encMode In m_segmentCounter.Keys
+        For Each encMode In m_segmentCounter.Keys()
             num = m_segmentCounter(encMode)
 
             m_dataBitCounter = m_dataBitCounter + _
@@ -2613,7 +2607,7 @@ Class Symbol
         Dim numModulesPerSide
         numModulesPerSide = Module.GetNumModulesPerSide(m_currVersion)
 
-        Dim moduleMatrix()
+        Dim moduleMatrix
         ReDim moduleMatrix(numModulesPerSide - 1)
 
         Dim i
@@ -2629,7 +2623,7 @@ Class Symbol
         Call TimingPattern.Place(moduleMatrix)
 
         If m_currVersion >= 2 Then
-            Call AlignmentPattern.Place(moduleMatrix, m_currVersion)
+            Call AlignmentPattern.Place(m_currVersion, moduleMatrix)
         End If
 
         Call FormatInfo.PlaceTempBlank(moduleMatrix)
@@ -2641,17 +2635,7 @@ Class Symbol
         Call PlaceSymbolChar(moduleMatrix)
         Call RemainderBit.Place(moduleMatrix)
 
-        Dim maskPatternReference
-        maskPatternReference = Masking.Apply( _
-            moduleMatrix, m_currVersion, m_parent.ErrorCorrectionLevel)
-
-        Call FormatInfo.Place(moduleMatrix, _
-                              m_parent.ErrorCorrectionLevel, _
-                              maskPatternReference)
-
-        If m_currVersion >= 7 Then
-            Call VersionInfo.Place(moduleMatrix, m_currVersion)
-        End If
+        Call Masking.Apply(m_currVersion, m_parent.ErrorCorrectionLevel, moduleMatrix)
 
         GetModuleMatrix = moduleMatrix
     End Function
@@ -2673,14 +2657,14 @@ Class Symbol
         rowDirection = -1
 
         Dim bitPos
-        Dim i
+        Dim v
 
-        For i = 0 To UBound(data)
+        For Each v In data
             bitPos = 7
 
             Do While bitPos >= 0
                 If moduleMatrix(r)(c) = 0 Then
-                    If (data(i) And 2 ^ bitPos) > 0 Then
+                    If (v And 2 ^ bitPos) > 0 Then
                         moduleMatrix(r)(c) = 1
                     Else
                         moduleMatrix(r)(c) = -1
@@ -3372,7 +3356,7 @@ Class VersionInfo_
         )
     End Sub
 
-    Public Sub Place(ByRef moduleMatrix(), ByVal ver)
+    Public Sub Place(ByVal ver, ByRef moduleMatrix())
         Dim numModulesPerSide
         numModulesPerSide = UBound(moduleMatrix) + 1
 
