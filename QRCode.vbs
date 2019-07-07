@@ -419,6 +419,7 @@ End Function
 
 
 Class AlignmentPattern_
+
     Private m_centerPosArrays(40)
 
     Private Sub Class_Initialize()
@@ -706,6 +707,7 @@ End Class
 
 
 Class BinaryWriter
+
     Private m_byteTable(255)
     Private m_stream
 
@@ -2706,7 +2708,7 @@ Class Symbol
     End Sub
 
     Public Function Get1bppDIB(ByVal moduleSize, ByVal foreColor, ByVal backColor)
-        If moduleSize < 1 Or moduleSize > 31 Then Call Err.Raise(5)
+        If Not (1 <= moduleSize And moduleSize <= 31) Then Call Err.Raise(5)
 
         Dim foreRGB
         foreRGB = ToRGB(foreColor)
@@ -2752,16 +2754,17 @@ Class Symbol
         Dim bs
         Set bs = New BitSequence
 
-        Dim r, c
+        Dim r
         Dim i
+        Dim v
         Dim pixelColor
         Dim bitmapRow
 
         For r = UBound(moduleMatrix) To 0 Step -1
             Call bs.Clear
 
-            For c = 0 To UBound(moduleMatrix(r))
-                If moduleMatrix(r)(c) > 0 Then
+            For Each v In moduleMatrix(r)
+                If v > 0 Then
                     pixelColor = 0
                 Else
                     pixelColor = (2 ^ moduleSize) - 1
@@ -2822,8 +2825,9 @@ Class Symbol
         Dim offset
         offset = 0
 
-        Dim r, c
+        Dim r
         Dim i
+        Dim v
 
         Dim colorRGB
         Dim bitmapRow()
@@ -2833,8 +2837,8 @@ Class Symbol
             ReDim bitmapRow(rowSize - 1)
             idx = 0
 
-            For c = 0 To UBound(moduleMatrix(r))
-                If moduleMatrix(r)(c) > 0 Then
+            For Each v In moduleMatrix(r)
+                If v > 0 Then
                     colorRGB = foreRGB
                 Else
                     colorRGB = backRGB
@@ -2866,7 +2870,7 @@ Class Symbol
 
     Public Sub Save1bppDIB(ByVal filePath, ByVal moduleSize, ByVal foreRGB, ByVal backRGB)
         If Len(filePath) = 0 Then Call Err.Raise(5)
-        If moduleSize < 1 Or moduleSize > 31 Then Call Err.Raise(5)
+        If Not(0 < moduleSize And moduleSize < 32) Then Call Err.Raise(5)
 
         If m_dataBitCounter = 0 Then Call Err.Raise(51)
 
@@ -2911,8 +2915,7 @@ Class Symbols
     Private m_encKanji
 
     Public Sub Init(ByVal ecLevel, ByVal maxVer, ByVal allowStructuredAppend)
-        If maxVer < MIN_VERSION Or _
-           maxVer > MAX_VERSION Then
+        If Not (MIN_VERSION <= maxVer And maxVer <= MAX_VERSION) Then
             Call Err.Raise(5)
         End If
 
